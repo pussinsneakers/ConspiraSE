@@ -10,7 +10,7 @@ doomscroll/
 ├── scripts/
 │   ├── prepare_corpus.py
 │   └── benchmark.py
-├── src/doomscroll/
+├── src/conspirase/
 │   ├── __init__.py
 │   ├── config.py
 │   ├── corpus.py
