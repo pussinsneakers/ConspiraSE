@@ -1,5 +1,5 @@
 """
-Turning raw text into terms
+Take raw text, tokenize it with removal of urls, tags of other users and stopwords, producing a list of normalized terms 
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ _UMLAUT_TABLE = str.maketrans({
     "ü":"ue"
 })
 
-# list of stopwords is taken from NLTK library
+# list of stopwords is taken from NLTK library & slightly modified to meet later apostroph criteria
 STOPWORDS_EN = {"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", 
     "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", 
     "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", 

@@ -1,5 +1,5 @@
 """
-Reading datafile from disk
+Read datafile from the disk & yield document containing doc_ID, text & some_metadata
 """
 
 from __future__ import annotations
