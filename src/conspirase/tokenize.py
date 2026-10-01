@@ -72,7 +72,7 @@ def tokenize (text: str) -> list[str]:
         elif (char in _APOSTROPHES 
               and current
               and ind+1 < len(text)
-              and text[ind+1].isalnum()): #chech if current is not empty and num or alphabetic char follows it 
+              and text[ind+1].isalnum()): #check if current is not empty and num or alphabetic char follows it 
             current.append("'") #keep the apostroph but get rid of apostrophe variants 
         else:
             if current:
