@@ -1,4 +1,5 @@
 from conspirase.index import InvertedIndex, build_index
+from conspirase.corpus import load
 
 #---Class methods---
 def test_term_in_two_documents_postings():
@@ -52,7 +53,7 @@ def test_build_index_from_file(tmp_path): #temporary folder for test
         "2018-02-20 00:49:00 +0100\t2\t@b\tB\tMalaria vaccines\n",
         encoding="utf-8",
     )
-    index = build_index(path)
+    index = build_index(load(path))
     assert index.num_docs() == 2
     assert index.df("vaccines") == 2
 

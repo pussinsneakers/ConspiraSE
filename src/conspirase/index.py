@@ -5,8 +5,9 @@ Build a dictionary: for each tweet run terms() and count how often each word occ
 from conspirase.tokenize import terms
 from conspirase.postings import PostingsList
 from collections import Counter
-from conspirase.corpus import load
+from conspirase.corpus import Document 
 from pathlib import Path
+from typing import Iterable
 
 class InvertedIndex:
     def __init__(self):
@@ -43,9 +44,9 @@ class InvertedIndex:
         """List of all documents with internal ids"""
         return list(range(len(self.doc_ids))) #shortcut for returning a list which consists of indexes 
 
-def build_index(path: str | Path) -> InvertedIndex:
+def build_index(docs: Iterable[Document]) -> InvertedIndex:
     """Building the inverted index"""
     new_index = InvertedIndex()
-    for doc in load(path):
+    for doc in docs:
         new_index.add_document(doc.doc_id,doc.text)
     return new_index
