@@ -23,7 +23,7 @@ def search(query:str, index: InvertedIndex) -> list[int]:
         #get the word doc ids
         w_ids = list(index.postings(w).ids())
         if negate: #check if the word prior was negation 
-            w_ids = and_not (index.all_doc_ids(w), w_ids) #if previos term was a negation we need a list with all docs without the term 
+            w_ids = and_not (index.all_doc_ids(), w_ids) #if previos term was a negation we need a list with all docs without the term 
 
         if result is not None: 
             if op == "AND":
