@@ -7,6 +7,7 @@ from conspirase.corpus import load
 from conspirase.index import build_index
 from conspirase.query import search 
 from conspirase.rank import doc_norms, rank
+from conspirase.permuterm import PermutermIndex
 
 def print_results(ids,docs,limit):
     print (f"The tweets matching the result: {len(ids)}")
@@ -38,6 +39,7 @@ def main():
     #load and build
     docs = list(load(args.path))
     index = build_index(docs)
+    permuterm = PermutermIndex(index.dictionary.keys())
     norms = doc_norms(index) if args.ranked else None
     print (f"Number of documents in the corpus: {index.num_docs()}\nNumber of terms: {len(index.dictionary)}")
 
@@ -51,8 +53,13 @@ def main():
             results = rank (query,index,norms, k = args.limit)
             print_ranked(results,docs)
         else:
-            ids = search(query,index)
+            try:
+                ids = search(query,index,permuterm)
+            except ValueError as e:
+                print (f"Invalid query: {e}")
+                continue
             print_results(ids, docs, args.limit)
+            
 
 if __name__== "__main__":
     main()

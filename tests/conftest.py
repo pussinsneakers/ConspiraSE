@@ -1,5 +1,6 @@
 import pytest
 from conspirase.index import InvertedIndex
+from conspirase.permuterm import PermutermIndex
 
 @pytest.fixture
 def index():
@@ -10,3 +11,7 @@ def index():
     idx.add_document("t3", "Impfung gegen Malaria; schützt gegen Malaria")
     idx.add_document("t4", "dinos are cool")
     return idx
+
+@pytest.fixture
+def permuterm(index):
+    return  PermutermIndex(index.dictionary.keys())
