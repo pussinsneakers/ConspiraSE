@@ -1,5 +1,9 @@
 """
-Take raw text, tokenize it with removal of urls, tags of other users and stopwords, producing a list of normalized terms 
+Tokenization of the raw text. 
+
+Takes the raw text, removes the urls and tags of other users in, tokenizes the text with apostroph normalization 
+and non-alphabetic & numeric character removal, removes the stopwords and normalizes the umlauts. 
+Dropping of urls and mentions, as well as minumim length can be configured through TokenizationConfig  
 """
 
 from __future__ import annotations
@@ -63,7 +67,8 @@ STOPWORDS = STOPWORDS_EN | STOPWORDS_DE #forming a union for 2 sets
 _APOSTROPHES = {"'", "’", "´", "`"}
 
 def tokenize (text: str) -> list[str]:
-    """Walking through the text one character at a time. Words with apostrophes are kept intact"""
+    """Takes text as a string and walks one character at a time, unifying the apostroph variations. 
+    Returns list of tokenized terms."""
     current = []
     tokens = []
     for ind,char in enumerate(text):
@@ -72,19 +77,19 @@ def tokenize (text: str) -> list[str]:
         elif (char in _APOSTROPHES 
               and current
               and ind+1 < len(text)
-              and text[ind+1].isalnum()): #check if current is not empty and num or alphabetic char follows it 
-            current.append("'") #keep the apostroph but get rid of apostrophe variants 
+              and text[ind+1].isalnum()): #avoids adding apostrophes, which are placed at the end of the word 
+            current.append("'") #avoid apostroph variants
         else:
             if current:
                 tokens.append("".join(current)) #join the chars together into token, but only if current is not empty string
                 current=[]
     if current:            
-        tokens.append("".join(current)) #join the last token in the text, but only if current is not empty
+        tokens.append("".join(current)) #join for the last token in the text (to avoid missing the last term in text), but only if current is not empty
     return tokens
 
 
 def _strip_noise (text:str, config: TokenizerConfig) -> str:
-    """ Remove URLs and mentions"""
+    """Remove URLs and mentions in a text but only if it's set up in config"""
     stripped_text = []
     for word in text.split(): 
         if config.drop_urls and ("http://" in word or "https://" in word or word.startswith("www.")):
@@ -96,7 +101,7 @@ def _strip_noise (text:str, config: TokenizerConfig) -> str:
 
 
 def normalize (token:str) -> str:
-    """Mapping different spelling of the same word to one form"""
+    """Mapping different spelling of the same word with umlaut to one form"""
     token = token.casefold() #stronger version of lowercasing, making ẞ - ss
     return token.translate(_UMLAUT_TABLE) 
     
@@ -104,6 +109,7 @@ def normalize (token:str) -> str:
 _STOPWORDS_NORMALIZED = frozenset (normalize(w) for w in STOPWORDS)
 
 def terms (text: str, config: TokenizerConfig = DEFAULT_CONFIG) -> list[str]:
+    """Produces the raw text tokenization and normalization, returning list of terms"""
     final_l = []
     no_url_text=_strip_noise(text,config)
     tokenized_text = tokenize(no_url_text)

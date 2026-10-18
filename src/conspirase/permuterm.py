@@ -1,8 +1,15 @@
+"""
+Builds permuterm index. 
+
+Iterates through the terms in vocabulary adding up rotations and terms to two parallel lists. 
+Takes the pattern, cleans it from wildcard, rotates it and does a lookup in the permuterm index. 
+"""
 import bisect
 
 class PermutermIndex:
     def __init__(self, vocabulary):
-        """Build two parallel lists: one with rotations and another with terms"""
+        """Builds permuterm index in the form of 2 parallel lists: list with rotations, list with corresponding terms. Lists 
+        are sorted by the rotations alphabetically"""
         for term in vocabulary: 
             pairs_lst = []
             t = term +'$'
@@ -14,7 +21,9 @@ class PermutermIndex:
             self.terms = [term for _, term in pairs_lst] #the terms associated with the rotations, bound by the index [i]
 
     def _prefix_lookup(self,prefix):
-        """Finds all terms with rotations starting with the prefix"""
+        """Returns a set with all terms with rotations starting with the prefix
+        
+        prefix: is already cleaned of wildcard and rotated"""
         result = set() 
         start = bisect.bisect_left(self.rotations,prefix) #gives the position of the first rotation that is greater or equal to prefix  
         for i in range (start, len(self.rotations)):
@@ -24,7 +33,9 @@ class PermutermIndex:
         return result
 
     def lookup(self,pattern):
-        """Build the right search key and hand it to _prefix_lookup function"""
+        """Cleanes and rotates the pattern, depending on the amount of wildcards, searches for the key in the prefix. 
+        Rwturns a sorted set of mathcing terms. 
+        """
         n = pattern.count("*")
         if pattern.split("*") == "":
             raise ValueError ("There must be at least one symbol besides wildcard")

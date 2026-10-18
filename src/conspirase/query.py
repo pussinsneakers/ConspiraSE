@@ -1,10 +1,22 @@
+"""
+Search query in the inverted index. 
+
+Parses the query, normalizes the terms in it and returns the list of internal document IDs where this terms appear according to the condition 
+of an operator used in the query (AND, OR, AND NOT).
+Search does not support phrase queries, since index is non-positional. Consequitives terms are joined with an implicit AND operator. 
+"""
 from conspirase.index import InvertedIndex
 from conspirase.tokenize import terms, normalize 
 from conspirase.postings import and_not, union, intersect 
 from conspirase.permuterm import PermutermIndex
 
 def search(query:str, index: InvertedIndex, permuterm: PermutermIndex | None = None) -> list[int]:
-    """Return the matching list with internal id tweets"""
+    """The search function performs left-to-right evaluation, with no precedence and no parentheses, so a OR b AND c means (a OR b) AND c. Operators 
+    must be written in upper-case, otherwise they are treated as normal terms & dropped as stopwords during normalization. Stopwords in queries are 
+    skipped, unknown terms have no postings and return an empty list. Terms in query can contain wildcards, however in this case permuterm index 
+    must be included as a function parameter otherwise an error is raised. Unsupported wildcards like a*b*c also raise ValueError. The word can 
+    be tokenized into miltiple tokens ("covid-19", ["covid", "19"]) but only the first term in the list will be searched. 
+    """
     result = None 
     negate = False 
     op = "AND" #set the operator to AND by default 

@@ -1,5 +1,9 @@
 """
-Load the tweets and build the index, prints how mony documents and terms are there 
+An interactive command-line search over a document collection.
+
+Loads the document, builds the inverted index, build the permuterm index, and compute document norms when in rank mode. There are two modes:
+Boolean with wildcard and operators (default) and ranked (--ranked), with free-text TF-IDF and operators and wildcards have no effect. 
+To end the search type "quit".
 """
 import argparse
 import logging
@@ -10,12 +14,14 @@ from conspirase.rank import doc_norms, rank
 from conspirase.permuterm import PermutermIndex
 
 def print_results(ids,docs,limit):
+    """Prints the result of the search"""
     print (f"The tweets matching the result: {len(ids)}")
     for doc_id in ids[:limit]:
         doc = docs[doc_id]
         print (f"User: {doc.meta['user_handle']}, tweet: {doc.text[:100]}")
 
 def print_ranked(results, docs):
+    """Prints the result of the ranked search"""
     print (f"Top {len(results)} results")
     for (doc_id, score) in results:
         doc = docs[doc_id]
@@ -23,8 +29,7 @@ def print_ranked(results, docs):
 
 
 def main():
-    """
-    Read the command line
+    """Parse document, build the index and run an interactive query loop
     """
     #read the command line 
     parser = argparse.ArgumentParser(description="Search the tweet corpus.")
@@ -37,12 +42,13 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     #load and build
-    docs = list(load(args.path))
+    docs = list(load(args.path)) 
     index = build_index(docs)
     permuterm = PermutermIndex(index.dictionary.keys())
-    norms = doc_norms(index) if args.ranked else None
+    norms = doc_norms(index) if args.ranked else None #only computed in --ranked mode 
     print (f"Number of documents in the corpus: {index.num_docs()}\nNumber of terms: {len(index.dictionary)}")
 
+    #query loop 
     while True:
         query = input("What's your query hun? ").strip()
         if not query:
@@ -55,7 +61,7 @@ def main():
         else:
             try:
                 ids = search(query,index,permuterm)
-            except ValueError as e:
+            except ValueError as e: #bad prompt does not end the session but prints an error message
                 print (f"Invalid query: {e}")
                 continue
             print_results(ids, docs, args.limit)

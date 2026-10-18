@@ -1,5 +1,9 @@
 """
-Read datafile from the disk & yield document containing doc_ID, text & some_metadata
+Read datafile from the disk.
+
+Supports tab-separated file format (.csv/.tsv) and JSON lines (.jsonl).
+Each reader yields Document object with whitespace cleaned up and skips malformed lines, empty texts and duplicate IDs. 
+Right reader from the file extension is picked automatically through load() method. 
 """
 
 from __future__ import annotations
@@ -73,7 +77,10 @@ def read_tweets (path:str | Path) -> Iterator[Document]:
              path.name, len(seen) - empty, malformed, empty, duplicates)
 
 def read_jsonl(path:str | Path) -> Iterator[Document]:
-    """Yield document from the jsonl file"""
+    """
+    Yild document from the JSON lines file. The function acts as a generator.
+    Skips malformed lines, empty tweets and duplicate IDs.  
+    """ 
     path = Path(path) 
     malformed = duplicates = empty = 0
     seen = set ()
@@ -110,6 +117,9 @@ def read_jsonl(path:str | Path) -> Iterator[Document]:
                  path.name, len(seen) - empty, malformed, empty, duplicates)
 
 def load(path: str | Path):
+    """
+    Picks the right reader from the file extension name.
+    """
     path = Path(path)
     format = path.suffix.lower()
     if format == ".csv" or format == ".tsv":

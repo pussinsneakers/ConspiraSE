@@ -1,6 +1,12 @@
 """
-Assign internal document IDs because tweet IDs are very long unordered strings.
-Build a dictionary: for each tweet run terms() and count how often each word occurs and add a posting for each word 
+Build a non-positional inverted index.
+
+Dictionary maps each term to a PostingList sorted by internal document IDs. doc_ids maps internal IDs to original onses, this is needed because
+original tweet IDs are very long unordered strings.
+Documents go through tokenization and normalization during indexing, so class lookups need normalized term. 
+The documents are added from any iterable Document in build_index() method. 
+
+This module do not stores document text, parse queries and does not saved anything on disk (lives in memory only).
 """
 from conspirase.tokenize import terms
 from conspirase.postings import PostingsList
@@ -10,13 +16,21 @@ from pathlib import Path
 from typing import Iterable
 
 class InvertedIndex:
+    """In-memory non-positional index over the a collection of documents
+    Documents must be added with add_document. IDs are assigned in order.
+
+    dictionary: maps term to PostingList. PostingList contains internal doc ID, tf pairs.
+    doc_ids: maps internal ID to tweet IDs. tweet IDs internal ID is its index. 
+
+    Lookups requires normalization, unknown terms return an empty PostingsList.
+    """
     def __init__(self):
         self.dictionary: dict[str, PostingsList] = {} #term -> PostingsList
-        self.doc_ids: list[str] = [] #Internal id -> tweet_id
+        self.doc_ids: list[str] = [] #Internal ID -> tweet ID, internal ID is the index of the original tweet ID
     
     def add_document (self, tweet_id:str, text:str) -> None:
-        """Appends tweet_id to the doc_ids list with it's position(index) as it's internal id. 
-        Gives the tweet it's internal ID and add key value data to the dictionary {term:(PostingsList)}. *PostingsList objects are("doc_ids", "tfs")"""
+        """Appends tweet ID to the doc IDs list, with it's index being internal ID.
+        Iterates over normalized and tokenized text, maping its terms to PosstingList."""
         internal_id = len(self.doc_ids)
         self.doc_ids.append(tweet_id)
         
@@ -31,21 +45,23 @@ class InvertedIndex:
         return self.dictionary.get(term, PostingsList()) #empty postings list is returned if term does not appear in the dictionary 
     
     def df(self,term:str) -> int:
+        """Return df of a term"""
         return len(self.dictionary.get(term, PostingsList()))
     
     def num_docs(self) -> int:
-        """Number of documents in the index"""
+        """Return number of documents in the index"""
         return len(self.doc_ids)
     
     def external_id(self, internal_id:int) -> str:
+        """Return external id of a document"""
         return self.doc_ids[internal_id]
     
     def all_doc_ids(self) -> list[int]:
-        """List of all documents with internal ids"""
+        """Return list of all documents with internal ids"""
         return list(range(len(self.doc_ids))) #shortcut for returning a list which consists of indexes 
 
 def build_index(docs: Iterable[Document]) -> InvertedIndex:
-    """Building the inverted index"""
+    """Builds the inverted index from the document"""
     new_index = InvertedIndex()
     for doc in docs:
         new_index.add_document(doc.doc_id,doc.text)

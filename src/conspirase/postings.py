@@ -1,18 +1,28 @@
 """
-Store term frequency and postings. 
-Merge sorted lists of document IDs by intesect, union or and not 
+Create postings list. 
+
+Creates posting list by adding term's doc ID and frequency. Stores the data in corresponding parallel lists.  
+Merges sorted sequences of doc IDs by intesect, union or and not. 
 """
 from typing import Iterator, Iterable
 
 class PostingsList:
-    """Stores data for one term as two parallel lists"""
+    """Postings List for a single term, the documents containing the term with term frequences are sorted by document IDs in parallel lists.
+    
+    doc_ids: internal document IDs in ascending order
+    tfs: term frequencies in docuemnts, tfs[i] belongs to doc_ids[i]
+    
+    Addition of documents happens in increasing order, everything else raises an error. Iterating gives (doc_ids, tfs) pairs, 
+    ids() gives just IDs, len() returns the number of documents in doc_ids list - df. 
+    
+    PostingsList does not hold the term itself, the term is held in inverted index."""
     __slots__ = ("doc_ids", "tfs") #memory optimization(for dic of attributes carried by python objects)
     def __init__(self) -> None:
         self.doc_ids: list[int] = [] #sorted internal doc IDs
         self.tfs: list[int] = [] #tfs[i] term frequency in doc_ids[i]
 
     def add (self,doc_id:int, tf:int) -> None:
-        """Append one posting, catching mistakes based on the order of document ids"""
+        """Adds one posting. Since documents are appended in the ascending order, everything else raises an error."""
         if self.doc_ids: 
             if doc_id <= self.doc_ids[-1]: 
                 raise ValueError (f"doc_id {doc_id} must be greater than last doc_id {self.doc_ids[-1]}")
@@ -24,18 +34,20 @@ class PostingsList:
         return len(self.doc_ids)
 
     def __iter__(self) -> Iterator[tuple[int,int]]:
-        """Needed for ranking"""
+        """Yields doc_id, tf pairs. Enables the iteration, needed for ranking"""
         yield from zip (self.doc_ids, self.tfs) #yield from gives out one item at a time, not a single item as yield 
 
     def ids(self) -> Iterator[int]:
-        """Needed for the merge functions: union, intersect, and_not"""
-        yield from self.doc_ids ##from is needed to return just [lst], without it [list[list]] would be returned
+        """Yields doc_id list. Needed for the merge functions: union, intersect, and_not"""
+        yield from self.doc_ids #from is needed to return just [lst], without it [list[list]] would be returned
 
     def __repr__(self) -> str:
+        """Returns infromation about number of documents in the list and their ids"""
         return f"PostingsList (df = {len(self.doc_ids)}, doc_ids = {self.doc_ids})"
 
 def intersect(a:Iterable[int], b:Iterable[int]) -> list[int]:
-    """Takes two sorted sequences of doc IDs and returns the IDs they share"""
+    """Returns the IDs shared in both 'a' and 'b'.
+    Both inputs must be sorted in ascending order. The result is sorted as well"""
     a = iter(a)
     b = iter(b)
     x = next (a, None) #first element of a
@@ -53,7 +65,8 @@ def intersect(a:Iterable[int], b:Iterable[int]) -> list[int]:
     return result
 
 def union (a:Iterable[int], b:Iterable[int]) -> list[int]:
-    """Takes sorted sequqnce of doc IDs and return all of the IDs present in both sequence"""
+    """Returns the combination of IDs in 'a' and 'b'.
+    Both inputs must be sorted in ascending order. The result is sorted as well"""
     a = iter(a)
     b = iter(b)
     x = next (a, None) 
@@ -82,6 +95,8 @@ def union (a:Iterable[int], b:Iterable[int]) -> list[int]:
     return result
 
 def and_not (a:Iterable[int], b:Iterable[int]) -> list[int]:
+    """Returns the IDs in 'a' that are not in 'b' (a AND NOT b).
+    Both inputs must be sorted in ascending order. The result is sorted as well"""
     a = iter(a)
     b = iter(b)
     x = next (a, None) 

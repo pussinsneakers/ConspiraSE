@@ -1,3 +1,9 @@
+"""
+Rank the found documents. 
+
+Documents are ranked using TF-IDF weighting with cosine similarity. The consine similarity formula is: (1+log10(tf)) * log10(N/df).
+The query vector is the same for every document. Since query text is normalized, operators and wildcards do no have any effect in queries.  
+"""
 from conspirase.query import search 
 from conspirase.index import InvertedIndex 
 from conspirase.tokenize import terms
@@ -5,10 +11,8 @@ from collections import Counter
 import math 
 import heapq
 
-
-
 def doc_norms(index) -> list[float]:
-    """Iterate through the index """
+    """Returns list of document vector length, indexed by internal IDs"""
     #create a list, the length is number of dcouments in the corpus, all elements are 0.0 
     norms = [0.0] * index.num_docs()
     #go thorugh the inverted index term by term 
@@ -25,8 +29,8 @@ def doc_norms(index) -> list[float]:
     return [math.sqrt(x) for x in norms]
 
 def rank(query, index, norms,k=10,candidates=None) -> list[tuple[int,float]]:
-    """Returns the top k documents as (internal_id, score)
-    candidates: allows to combine boolean search to filter and then ranking to order. 
+    """Returns the top k documents as (doc_id, score)
+    candidates: if set to True, allows to combine boolean search to filter and then ranking to order. 
     """
     counts_q = Counter(terms(query)) #count the terms in query
     scores = {}
