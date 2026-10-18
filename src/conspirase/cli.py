@@ -12,6 +12,7 @@ from conspirase.index import build_index
 from conspirase.query import search 
 from conspirase.rank import doc_norms, rank
 from conspirase.permuterm import PermutermIndex
+from conspirase.kmeans import doc_vector, kmeans, rss, label
 
 def print_results(ids,docs,limit):
     """Prints the result of the search"""
@@ -27,6 +28,18 @@ def print_ranked(results, docs):
         doc = docs[doc_id]
         print (f"Score: {score:.3f}, User: {doc.meta['user_handle']}, tweet: {doc.text[:100]}")
 
+def print_clusters(ids, assignments, centers, scores, docs, limit):
+    """Print each non-empty cluster: its label, size and RSS, then its top tweets."""
+    for c in range(len(centers)):
+        # Ranked IDs belonging to cluster c, still in score order.
+        members = [doc_id for doc_id, a in zip(ids, assignments) if a == c]
+        if not members:
+            continue
+        print(f"\n== {' · '.join(label(centers[c]))}  ({len(members)} tweets, RSS {scores[c]:.2f}) ==")
+        for doc_id in members[:limit]:
+            doc = docs[doc_id]
+            print(f"User: {doc.meta.get('user_handle', '?')}, tweet: {doc.text[:100]}")
+
 
 def main():
     """Parse document, build the index and run an interactive query loop
@@ -36,6 +49,7 @@ def main():
     parser.add_argument("path", help="path to the tweet file")
     parser.add_argument("--limit", type=int, default=10, help="results to show")
     parser.add_argument("--ranked", action ="store_true", help = "rank results by TF-IDF")
+    parser.add_argument("--clusters", type=int, default=0, help="group ranked results into K clusters (0 = off)")
     args = parser.parse_args()
     #args.path and args.limit hold what the user typed
 
@@ -45,7 +59,7 @@ def main():
     docs = list(load(args.path)) 
     index = build_index(docs)
     permuterm = PermutermIndex(index.dictionary.keys())
-    norms = doc_norms(index) if args.ranked else None #only computed in --ranked mode 
+    norms = doc_norms(index) if (args.ranked or args.clusters) else None #only computed in --ranked & --clusters mode 
     print (f"Number of documents in the corpus: {index.num_docs()}\nNumber of terms: {len(index.dictionary)}")
 
     #query loop 
@@ -55,7 +69,17 @@ def main():
             continue
         elif query == "quit":
             break
-        if args.ranked:
+        if args.clusters:
+            results = rank(query, index, norms, k=50)
+            if not results: 
+                print("No results") 
+                continue
+            ids = [doc_id for doc_id, _ in results]
+            vectors = [doc_vector(docs[i].text, index) for i in ids]
+            assignments, centers = kmeans(vectors, args.clusters)
+            scores = rss(vectors, assignments, centers)
+            print_clusters(ids, assignments, centers, scores, docs, args.limit)
+        elif args.ranked:
             results = rank (query,index,norms, k = args.limit)
             print_ranked(results,docs)
         else:
