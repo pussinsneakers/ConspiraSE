@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConspiraSE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --screen: #04030b;
+    --panel: rgba(122, 116, 255, .04);
+    --phosphor: #c3c0ff;
+    --phosphor-dim: #7b77d6;
+    --line: rgba(160, 156, 255, .45);
+    --line-faint: rgba(160, 156, 255, .18);
+    --pink: #ff3fa4;
+    --pink-soft: rgba(255, 63, 164, .35);
+    --warn: #ff6b8b;
+    /* one color per query word */
+    --m0: #ff4fb0;
+    --m1: #6ff3ff;
+    --m2: #ffd36b;
+    --m3: #9dff7a;
+    --m4: #ffffff;
+    --glow: 0 0 6px rgba(160, 156, 255, .55);
+    --pixel: "Silkscreen", "Courier New", monospace;
+    --term: "VT323", "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { background: var(--screen); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--phosphor);
+    font: 21px/1.25 var(--term);
+    text-shadow: var(--glow);
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(80, 70, 255, .12), transparent 60%),
+      var(--screen);
+  }
+  /* CRT scanlines and a soft vignette over everything */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    background:
+      repeating-linear-gradient(to bottom, rgba(0,0,0,.28) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55));
+  }
+
+  main { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 28px 24px 96px; }
+
+  /* --- frames --- */
+  .frame { position: relative; border: 1px solid var(--line); background: var(--panel); }
+  /* corner ticks, like the brackets around the fingerprint in the reference */
+  .frame::before, .frame::after {
+    content: ""; position: absolute; width: 10px; height: 10px; border: 1px solid var(--phosphor);
+  }
+  .frame::before { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
+  .frame::after { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
+
+  .bar {
+    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    padding: 6px 12px;
+    font: 12px var(--pixel);
+    color: var(--phosphor-dim);
+    border-bottom: 1px solid var(--line);
+  }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 11px; height: 11px; border: 1px solid var(--phosphor-dim); border-radius: 50%; }
+
+  /* --- console (header + search) --- */
+  .console-body { display: grid; grid-template-columns: 1fr auto; gap: 18px 32px; padding: 22px 22px 20px; }
+  h1 {
+    margin: 0;
+    font: 700 clamp(40px, 7vw, 84px)/.95 var(--pixel);
+    letter-spacing: -.02em;
+    color: var(--phosphor);
+    text-shadow: 0 0 10px rgba(160, 156, 255, .8), 0 0 30px rgba(110, 100, 255, .45);
+  }
+  .readout { margin: 0; align-self: start; display: grid; grid-template-columns: auto auto; gap: 2px 18px; font-size: 19px; }
+  .readout dt { color: var(--phosphor-dim); }
+  .readout dd { margin: 0; text-align: right; }
+
+  form { grid-column: 1 / -1; }
+  .prompt { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); padding: 4px 4px 4px 14px; }
+  .prompt:focus-within { border-color: var(--phosphor); box-shadow: 0 0 12px rgba(160, 156, 255, .3); }
+  .caret { font-size: 28px; color: var(--pink); text-shadow: 0 0 8px var(--pink); }
+  #q {
+    flex: 1; min-width: 0;
+    padding: 8px 0;
+    font: 30px var(--term);
+    color: var(--phosphor);
+    text-shadow: var(--glow);
+    caret-color: var(--pink);
+    background: transparent;
+    border: 0;
+    outline: none;
+  }
+  #q::placeholder { color: var(--phosphor-dim); opacity: .6; }
+  .run {
+    padding: 10px 20px;
+    font: 700 15px var(--pixel);
+    color: var(--screen);
+    text-shadow: none;
+    background: var(--phosphor);
+    border: 0;
+    cursor: pointer;
+    box-shadow: 0 0 14px rgba(160, 156, 255, .5);
+  }
+  .run:hover { background: #fff; }
+
+  .fields { display: grid; grid-template-columns: 110px 1fr; margin-top: 14px; border-top: 1px solid var(--line-faint); }
+  .fields > * { padding: 7px 0; border-bottom: 1px solid var(--line-faint); }
+  .fields dt { font: 12px var(--pixel); color: var(--phosphor-dim); padding-top: 11px; }
+  .fields dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+
+  .modes label { cursor: pointer; }
+  .modes input { position: absolute; opacity: 0; pointer-events: none; }
+  .modes span { display: inline-block; padding: 2px 10px; border: 1px solid var(--line-faint); color: var(--phosphor-dim); }
+  .modes input:checked + span { color: var(--screen); background: var(--phosphor); text-shadow: none; border-color: var(--phosphor); }
+  .modes input:focus-visible + span { outline: 1px dashed var(--pink); outline-offset: 3px; }
+  .k { display: none; align-items: center; gap: 8px; margin-left: 10px; color: var(--phosphor-dim); }
+  .k.on { display: inline-flex; }
+  .k input {
+    width: 52px; padding: 1px 6px;
+    font: 21px var(--term); color: var(--phosphor);
+    background: transparent; border: 1px solid var(--line);
+  }
+
+  .chip {
+    padding: 1px 9px;
+    font: 21px var(--term);
+    color: var(--phosphor);
+    text-shadow: var(--glow);
+    background: transparent;
+    border: 1px dashed var(--line);
+    cursor: pointer;
+  }
+  .chip:hover { border-style: solid; border-color: var(--phosphor); }
+
+  button:focus-visible, .k input:focus-visible { outline: 1px dashed var(--pink); outline-offset: 3px; }
+
+  .spider-toggle {
+    font: 12px var(--pixel);
+    color: var(--phosphor-dim);
+    text-shadow: none;
+    background: none; border: 0; padding: 0;
+    cursor: pointer;
+  }
+  .spider-toggle[aria-pressed="true"] { color: var(--pink); text-shadow: 0 0 6px var(--pink); }
+
+  /* --- status --- */
+  .status { min-height: 1.4em; margin: 26px 0 16px; color: var(--phosphor-dim); }
+  .status.error { color: var(--warn); text-shadow: 0 0 6px rgba(255, 107, 139, .6); }
+  .blink { animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* --- case files --- */
+  .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 22px; }
+  .file .bar { font-size: 11px; }
+  .file .body { padding: 12px 14px 14px; }
+  .text { margin: 0; font-size: 22px; line-height: 1.3; overflow-wrap: anywhere; }
+  .meta { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 12px; font-size: 18px; color: var(--phosphor-dim); }
+  .meter { display: flex; gap: 3px; }
+  .meter i { width: 9px; height: 11px; border: 1px solid var(--line); }
+  .meter i.on { background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor); border-color: var(--phosphor); }
+
+  /* words: every word is a foothold for the spider */
+  .w { transition: background-color 1.4s ease-out, color 1.4s ease-out, text-shadow 1.4s ease-out; }
+  .hl { font-weight: normal; background: none; }
+  .hl[data-m="0"] { color: var(--m0); text-shadow: 0 0 8px var(--m0); }
+  .hl[data-m="1"] { color: var(--m1); text-shadow: 0 0 8px var(--m1); }
+  .hl[data-m="2"] { color: var(--m2); text-shadow: 0 0 8px var(--m2); }
+  .hl[data-m="3"] { color: var(--m3); text-shadow: 0 0 8px var(--m3); }
+  .hl[data-m="4"] { color: var(--m4); text-shadow: 0 0 8px var(--m4); }
+  .hl { text-decoration: underline dotted; text-underline-offset: 3px; }
+  .w.touched {
+    transition: background-color .08s, color .08s, text-shadow .08s;
+    color: var(--screen);
+    background-color: var(--pink);
+    text-shadow: none;
+    box-shadow: 0 0 12px var(--pink);
+  }
+
+  /* --- clusters as subject dossiers --- */
+  .subject { margin-bottom: 40px; }
+  .subject > .bar { font-size: 13px; color: var(--phosphor); }
+  .subject-head { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 1px solid var(--line); }
+  .subject-head dl { display: grid; grid-template-columns: 150px 1fr; margin: 0; }
+  .subject-head dt, .subject-head dd { margin: 0; padding: 6px 14px; border-bottom: 1px solid var(--line-faint); }
+  .subject-head dt { font: 12px var(--pixel); color: var(--phosphor-dim); padding-top: 10px; }
+  .subject-head dd { text-align: right; }
+  .subject-head .terms { margin: 0; font: 700 26px/1.3 var(--pixel); padding: 14px; border-right: 1px solid var(--line); align-self: stretch; }
+  .subject .files { padding: 18px; }
+
+  .empty { max-width: 52ch; color: var(--phosphor-dim); }
+
+  #web { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 5; }
+
+  @media (max-width: 700px) {
+    main { padding: 16px 12px 64px; }
+    .console-body { grid-template-columns: 1fr; padding: 16px 14px; }
+    .readout { display: none; }
+    .fields { grid-template-columns: 1fr; }
+    .fields dt { padding-bottom: 0; border-bottom: 0; }
+    .subject-head { grid-template-columns: 1fr; }
+    .subject-head .terms { border-right: 0; border-bottom: 1px solid var(--line); }
+    .files { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .w, .w.touched { transition: none; }
+    .blink { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="web" aria-hidden="true"></canvas>
+<main>
+  <section class="frame console">
+    <div class="bar">
+      <span>CONSPIRA.SE // CASE INDEX</span>
+      <button class="spider-toggle" id="spider-toggle" type="button" aria-pressed="true">EBAKA ON</button>
+      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    </div>
+    <div class="console-body">
+      <h1>ConspiraSE</h1>
+      <dl class="readout">
+        <dt>Tweets</dt><dd id="stat-docs">----</dd>
+        <dt>Terms</dt><dd id="stat-terms">----</dd>
+        <dt>Index</dt><dd>in memory</dd>
+      </dl>
+
+      <form id="search" autocomplete="off">
+        <div class="prompt">
+          <span class="caret" aria-hidden="true">&gt;</span>
+          <input id="q" name="q" type="search" aria-label="Query" placeholder="impf* AND nebenwirk*" autofocus>
+          <button class="run" type="submit">Run</button>
+        </div>
+
+        <dl class="fields">
+          <dt>Mode</dt>
+          <dd>
+            <span class="modes" role="radiogroup" aria-label="Search mode">
+              <label><input type="radio" name="mode" value="boolean" checked><span>Boolean</span></label>
+              <label><input type="radio" name="mode" value="ranked"><span>Ranked</span></label>
+              <label><input type="radio" name="mode" value="clusters"><span>Clusters</span></label>
+            </span>
+            <label class="k" id="k-wrap">groups <input id="k" type="number" min="2" max="10" value="4"></label>
+          </dd>
+          <dt>Try</dt>
+          <dd>
+            <button type="button" class="chip">impf* AND nebenwirk*</button>
+            <button type="button" class="chip">vaccine NOT autism</button>
+            <button type="button" class="chip">*impfung</button>
+            <button type="button" class="chip">malaria OR impfung</button>
+            <button type="button" class="chip" data-mode="clusters">impfung</button>
+          </dd>
+        </dl>
+      </form>
+    </div>
+  </section>
+
+  <p class="status" id="status" aria-live="polite">Ready. Type a query, or pick one above.<span class="blink">_</span></p>
+  <div id="results">
+    <p class="empty">Boolean mode needs every word to match exactly: use AND, OR and NOT in capitals, and * for the rest of a word (impf* finds Impfung, Impfstoff …). Ranked and Clusters take plain words and show the closest tweets first.</p>
+  </div>
+</main>
+
+<script>
+(() => {
+  // ================= search =================
+  const form = document.getElementById("search");
+  const q = document.getElementById("q");
+  const status = document.getElementById("status");
+  const results = document.getElementById("results");
+  const kWrap = document.getElementById("k-wrap");
+  const kInput = document.getElementById("k");
+
+  const mode = () => form.querySelector("input[name=mode]:checked").value;
+  const syncK = () => kWrap.classList.toggle("on", mode() === "clusters");
+  form.querySelectorAll("input[name=mode]").forEach(r => r.addEventListener("change", () => {
+    syncK();
+    if (q.value.trim()) run();
+  }));
+  syncK();
+
+  document.querySelectorAll(".chip").forEach(chip => chip.addEventListener("click", () => {
+    q.value = chip.textContent;
+    const m = chip.dataset.mode || "boolean";
+    form.querySelector(`input[value=${m}]`).checked = true;
+    syncK();
+    run();
+  }));
+  form.addEventListener("submit", e => { e.preventDefault(); run(); });
+
+  const fmt = n => n.toLocaleString("en-US");
+  let stats = null;
+  fetch("/api/stats").then(r => r.json()).then(s => {
+    stats = s;
+    document.getElementById("stat-docs").textContent = fmt(s.docs);
+    document.getElementById("stat-terms").textContent = fmt(s.terms);
+  }).catch(() => {});
+
+  function say(text, isError = false) {
+    status.textContent = text;
+    status.classList.toggle("error", isError);
+  }
+
+  async function run() {
+    const query = q.value.trim();
+    if (!query) return;
+    const params = new URLSearchParams({ q: query, mode: mode(), limit: 30, k: kInput.value || 4 });
+    say("Searching…");
+    let data;
+    try {
+      const res = await fetch(`/api/search?${params}`);
+      data = await res.json();
+      if (!res.ok) throw new Error(data.error || "search failed");
+    } catch (err) {
+      say(`ERR: ${err.message}. Check the query and run it again.`, true);
+      results.replaceChildren();
+      spider.refresh();
+      return;
+    }
+    render(data);
+  }
+
+  // Wrap every word in a span: the spider climbs on them.
+  function appendWords(parent, text) {
+    for (const part of text.split(/(\s+)/)) {
+      if (!part) continue;
+      if (/^\s+$/.test(part)) { parent.append(part); continue; }
+      const w = document.createElement("span");
+      w.className = "w";
+      w.textContent = part;
+      parent.append(w);
+    }
+  }
+
+  let fileNo = 0;
+  function caseFile(hit, maxScore) {
+    fileNo += 1;
+    const el = document.createElement("article");
+    el.className = "frame file";
+
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    const no = document.createElement("span");
+    no.textContent = `FILE ${String(fileNo).padStart(4, "0")}`;
+    const who = document.createElement("span");
+    who.textContent = hit.handle;
+    bar.append(no, who);
+
+    const body = document.createElement("div");
+    body.className = "body";
+    const p = document.createElement("p");
+    p.className = "text";
+    for (const seg of hit.segments) {
+      if (seg.m === undefined) {
+        appendWords(p, seg.t);
+      } else {
+        const mark = document.createElement("span");
+        mark.className = "w hl";
+        mark.dataset.m = seg.m % 5;
+        mark.textContent = seg.t;
+        p.append(mark);
+      }
+    }
+    body.append(p);
+
+    const metaParts = [];
+    if (hit.score !== undefined && maxScore > 0) {
+      const meter = document.createElement("span");
+      meter.className = "meter";
+      const filled = Math.max(1, Math.round(8 * hit.score / maxScore));
+      for (let i = 0; i < 8; i++) {
+        const cell = document.createElement("i");
+        if (i < filled) cell.className = "on";
+        meter.append(cell);
+      }
+      metaParts.push(["Match", meter, hit.score.toFixed(3)]);
+    }
+    if (hit.copies > 1) metaParts.push(["Copies", document.createElement("span"), `×${hit.copies}`]);
+    for (const [label, mid, value] of metaParts) {
+      const row = document.createElement("div");
+      row.className = "meta";
+      const l = document.createElement("span"); l.textContent = label;
+      const v = document.createElement("span"); v.textContent = value;
+      row.append(l, mid, v);
+      body.append(row);
+    }
+
+    el.append(bar, body);
+    return el;
+  }
+
+  function filesGrid(hits, maxScore) {
+    const grid = document.createElement("div");
+    grid.className = "files";
+    hits.forEach(h => grid.append(caseFile(h, maxScore)));
+    return grid;
+  }
+
+  function render(data) {
+    results.replaceChildren();
+    fileNo = 0;
+    const plural = (n, w) => `${fmt(n)} ${w}${n === 1 ? "" : w.endsWith("ch") ? "es" : "s"}`;
+
+    if (!data.total) {
+      say(`No matches for "${data.query}", ${data.ms} ms.`);
+      const empty = document.createElement("p");
+      empty.className = "empty";
+      empty.textContent = data.mode === "boolean"
+        ? "Every word has to appear exactly. Try OR instead of AND, a shorter word with * (vaccin*), or Ranked mode."
+        : "Ranked and Clusters ignore AND, OR, NOT and *. Try plain words.";
+      results.append(empty);
+    } else if (data.mode === "clusters") {
+      say(`Top ${plural(data.total, "tweet")} sorted into ${plural(data.clusters.length, "group")}, ${data.ms} ms.`);
+      data.clusters.forEach((c, i) => {
+        const sec = document.createElement("section");
+        sec.className = "frame subject";
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        bar.append(`SUBJECT C-${i + 1}`, "");
+        const head = document.createElement("div");
+        head.className = "subject-head";
+        const terms = document.createElement("h2");
+        terms.className = "terms";
+        appendWords(terms, c.label.join(" "));
+        const dl = document.createElement("dl");
+        for (const [k, v] of [["Tweets", fmt(c.size)], ["RSS", c.rss.toFixed(2)], ["Cohesion", c.rss < 1 ? "tight" : c.rss < 8 ? "loose" : "scattered"]]) {
+          const dt = document.createElement("dt"); dt.textContent = k;
+          const dd = document.createElement("dd"); dd.textContent = v;
+          dl.append(dt, dd);
+        }
+        head.append(terms, dl);
+        sec.append(bar, head, filesGrid(c.hits));
+        results.append(sec);
+      });
+    } else {
+      const corpus = stats ? ` in ${fmt(stats.docs)} tweets` : "";
+      say(`${plural(data.total, "match")}${data.mode === "ranked" ? ", best first" : ""}${corpus}, ${data.ms} ms.`);
+      const max = Math.max(0, ...data.hits.map(h => h.score || 0));
+      results.append(filesGrid(data.hits, max));
+    }
+    spider.refresh();
+  }
+
+  // ================= the spider =================
+  const spider = (() => {
+    const canvas = document.getElementById("web");
+    const ctx = canvas.getContext("2d");
+    const toggle = document.getElementById("spider-toggle");
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+    const finePointer = matchMedia("(pointer: fine)").matches;
+
+    let on = finePointer && !reduce.matches;
+    const setToggle = () => {
+      toggle.setAttribute("aria-pressed", on);
+      toggle.textContent = on ? "EBAKA ON" : "EBAKA OFF";
+    };
+    setToggle();
+    toggle.addEventListener("click", () => { on = !on; setToggle(); if (!on) releaseAll(); });
+
+    let W = 0, H = 0;
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      W = innerWidth; H = innerHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+
+    // All positions are page coordinates, so feet stay on their words while scrolling.
+    const mouse = { x: innerWidth * .7, y: 160, seen: false };
+    let client = null;
+    addEventListener("pointermove", e => {
+      client = [e.clientX, e.clientY];
+      mouse.x = e.clientX + scrollX; mouse.y = e.clientY + scrollY;
+      if (!mouse.seen) { mouse.seen = true; body.x = mouse.x; body.y = mouse.y; placeFeet(); }
+    });
+    addEventListener("scroll", () => {
+      if (client) { mouse.x = client[0] + scrollX; mouse.y = client[1] + scrollY; }
+    }, { passive: true });
+
+    // ---- footholds: every word on the page ----
+    let holds = [];
+    function collectHolds() {
+      holds = [];
+      for (const el of document.querySelectorAll(".w, .chip, h1, .modes span, .readout dd")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        holds.push({ el, x: r.left + r.width / 2 + scrollX, y: r.top + r.height / 2 + scrollY, hw: r.width / 2 });
+      }
+    }
+    let holdsTimer = 0;
+    const refreshHolds = () => { clearTimeout(holdsTimer); holdsTimer = setTimeout(collectHolds, 60); };
+    addEventListener("resize", () => { resize(); refreshHolds(); });
+    if (document.fonts) document.fonts.ready.then(refreshHolds);
+
+    // ---- anatomy ----
+    // Leg angles relative to the heading (0 = forward), front to back; left side negative.
+    const DEG = Math.PI / 180;
+    const S = 1.4;   // overall size of the spider
+    const legDefs = [
+      { a: 32, femur: 70, tibia: 86 },
+      { a: 72, femur: 60, tibia: 72 },
+      { a: 112, femur: 56, tibia: 66 },
+      { a: 148, femur: 66, tibia: 80 },
+    ];
+    const legs = [];
+    for (const side of [-1, 1]) {
+      legDefs.forEach((d, i) => {
+        legs.push({
+          side, angle: side * d.a * DEG,
+          femur: d.femur * S, tibia: d.tibia * S,
+          reach: (d.femur + d.tibia - 6) * S,
+          attach: (6 - i * 4) * S,       // hips spread along the head, front to back
+          group: (i + (side > 0 ? 1 : 0)) % 2,   // alternating tetrapod gait
+          foot: { x: 0, y: 0 }, from: null, to: null, t: 1, hold: null, pending: null,
+        });
+      });
+    }
+
+    const body = { x: mouse.x, y: mouse.y, vx: 0, vy: 0, heading: -Math.PI / 2 };
+    const MAX_SPEED = 170;   // px per second: it creeps after the cursor
+
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const rot = (x, y, a) => ({ x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) });
+
+    function hip(leg) {
+      const p = rot(leg.attach, leg.side * 5 * S, body.heading);
+      return { x: body.x + p.x, y: body.y + p.y };
+    }
+    function ideal(leg) {
+      const h = hip(leg), a = body.heading + leg.angle, r = leg.reach * .74;
+      return { x: h.x + Math.cos(a) * r, y: h.y + Math.sin(a) * r };
+    }
+
+    function placeFeet() {
+      for (const leg of legs) { leg.foot = ideal(leg); leg.t = 1; leg.hold = null; }
+    }
+    placeFeet();
+
+    function findHold(leg, want) {
+      const h = hip(leg);
+      const taken = new Set(legs.map(l => l.hold && l.hold.el).filter(Boolean));
+      let best = null, bestD = 58 * S;
+      for (const s of holds) {
+        if (taken.has(s.el)) continue;
+        // a random point along the word, so feet don't all land on centres
+        if (Math.abs(s.y - want.y) > bestD) continue;
+        const x = Math.max(s.x - s.hw * .7, Math.min(s.x + s.hw * .7, want.x));
+        const p = { x, y: s.y };
+        if (dist(h, p) > leg.reach * .92) continue;
+        const d = dist(p, want);
+        if (d < bestD) { bestD = d; best = { el: s.el, x, y: s.y }; }
+      }
+      return best;
+    }
+
+    function touch(hold) {
+      if (hold && hold.el.classList.contains("w")) hold.el.classList.add("touched");
+    }
+    function untouch(hold) {
+      if (hold) hold.el.classList.remove("touched");
+    }
+    function releaseAll() { legs.forEach(l => { untouch(l.hold); l.hold = null; }); }
+
+    function startStep(leg, fast) {
+      untouch(leg.hold);
+      leg.hold = null;
+      // aim a little ahead in the direction of travel
+      const lead = { x: body.vx * .25, y: body.vy * .25 };
+      const target = ideal(leg);
+      target.x += lead.x; target.y += lead.y;
+      const found = findHold(leg, target);
+      leg.from = { ...leg.foot };
+      leg.to = found ? { x: found.x, y: found.y } : target;
+      leg.pending = found;
+      leg.t = 0;
+      leg.speed = fast ? 11 : 8;
+    }
+
+    function update(dt) {
+      // Creep towards the cursor with a capped speed and a little inertia.
+      let dx = mouse.x - body.x, dy = mouse.y - body.y;
+      const d = Math.hypot(dx, dy);
+      let tvx = 0, tvy = 0;
+      if (d > 6) {
+        const speed = Math.min(MAX_SPEED, d * 1.6);
+        tvx = dx / d * speed; tvy = dy / d * speed;
+      }
+      const ease = Math.min(1, dt * 4);
+      body.vx += (tvx - body.vx) * ease;
+      body.vy += (tvy - body.vy) * ease;
+      body.x += body.vx * dt;
+      body.y += body.vy * dt;
+      const v = Math.hypot(body.vx, body.vy);
+      if (v > 15) {
+        let turn = Math.atan2(body.vy, body.vx) - body.heading;
+        turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+        body.heading += turn * Math.min(1, dt * 3.5);
+      }
+
+      const busy = [0, 0];
+      for (const l of legs) if (l.t < 1) busy[l.group] += 1;
+
+      for (const leg of legs) {
+        if (leg.t < 1) {
+          leg.t = Math.min(1, leg.t + dt * leg.speed);
+          const e = leg.t * leg.t * (3 - 2 * leg.t);
+          // the target may slide out of reach while stepping: keep it attached to the hip
+          leg.foot.x = leg.from.x + (leg.to.x - leg.from.x) * e;
+          leg.foot.y = leg.from.y + (leg.to.y - leg.from.y) * e;
+          if (leg.t === 1) { leg.hold = leg.pending; leg.pending = null; touch(leg.hold); }
+          continue;
+        }
+        const h = hip(leg);
+        const stretched = dist(leg.foot, h) > leg.reach * .97;
+        const drifted = dist(leg.foot, ideal(leg)) > leg.reach * .42;
+        // A leg that is about to over-stretch steps right away; otherwise legs take turns.
+        if (stretched || (drifted && busy[1 - leg.group] === 0 && busy[leg.group] < 4)) {
+          startStep(leg, stretched);
+          busy[leg.group] += 1;
+        }
+      }
+    }
+
+    // Two-bone inverse kinematics; the knee bends away from the body.
+    function knee(h, f, leg) {
+      const d = Math.min(dist(h, f), leg.femur + leg.tibia - .5);
+      const a = Math.atan2(f.y - h.y, f.x - h.x);
+      const cos = (leg.femur ** 2 + d * d - leg.tibia ** 2) / (2 * leg.femur * d || 1);
+      const b = Math.acos(Math.max(-1, Math.min(1, cos)));
+      const k = a + leg.side * b;
+      return { x: h.x + Math.cos(k) * leg.femur, y: h.y + Math.sin(k) * leg.femur };
+    }
+
+    // Dots inside the abdomen and head, computed once in the spider's own frame (x = forward).
+    function bodyPath(p) {
+      p.moveTo(14, 0);
+      p.bezierCurveTo(13, -6, 4, -8, -2, -5);      // head, slightly pointed
+      p.bezierCurveTo(-6, -3, -6, 3, -2, 5);
+      p.bezierCurveTo(4, 8, 13, 6, 14, 0);
+      p.moveTo(-6, 0);
+      p.bezierCurveTo(-8, -11, -30, -12, -46, -4); // long tapering abdomen
+      p.bezierCurveTo(-52, -1, -52, 1, -46, 4);
+      p.bezierCurveTo(-30, 12, -8, 11, -6, 0);
+    }
+    const bodyDots = (() => {
+      const off = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(1, 1) : document.createElement("canvas");
+      const c = off.getContext("2d");
+      const path = new Path2D(); bodyPath(path);
+      const dots = [];
+      for (let x = -54; x <= 16; x += 2.6) {
+        for (let y = -13; y <= 13; y += 2.6) {
+          if (c.isPointInPath(path, x, y)) {
+            const edge = Math.abs(y) / (x < -6 ? 11 : 7);
+            dots.push({ x, y, a: .35 + .65 * Math.random() * (1 - edge * .5) });
+          }
+        }
+      }
+      return dots;
+    })();
+
+    function dotLine(a, b, step, size) {
+      const n = Math.max(1, Math.floor(dist(a, b) / step));
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        ctx.fillRect(a.x + (b.x - a.x) * t - size / 2, a.y + (b.y - a.y) * t - size / 2, size, size);
+      }
+    }
+
+    function draw() {
+      const ox = scrollX, oy = scrollY;
+      ctx.save();
+      ctx.translate(-ox, -oy);
+      ctx.lineCap = "round";
+
+      // legs: a glowing line, then a dot-matrix texture on top
+      for (const leg of legs) {
+        const h = hip(leg), f = leg.foot, k = knee(h, f, leg);
+        ctx.shadowColor = "#ff3fa4"; ctx.shadowBlur = 10;
+        ctx.strokeStyle = "rgba(255, 63, 164, .55)";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(h.x, h.y); ctx.lineTo(k.x, k.y); ctx.lineTo(f.x, f.y); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#ffc4e4";
+        dotLine(h, k, 3.2, 2.2);
+        dotLine(k, f, 3.6, 1.6);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(k.x - 1.5, k.y - 1.5, 3, 3);
+        if (leg.hold) ctx.fillRect(f.x - 2, f.y - 2, 4, 4);
+      }
+
+      // body: dark silhouette with a pink glow, then glowing dots
+      ctx.translate(body.x, body.y);
+      ctx.rotate(body.heading);
+      ctx.scale(S, S);
+      const path = new Path2D(); bodyPath(path);
+      ctx.shadowColor = "#ff3fa4"; ctx.shadowBlur = 16;
+      ctx.fillStyle = "rgba(20, 2, 14, .9)";
+      ctx.fill(path);
+      ctx.shadowBlur = 0;
+      for (const d of bodyDots) {
+        ctx.fillStyle = `rgba(255, 90, 180, ${d.a})`;
+        ctx.fillRect(d.x - .9, d.y - .9, 1.8, 1.8);
+      }
+      // spine and fangs
+      ctx.strokeStyle = "rgba(255, 220, 240, .8)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-46, 0); ctx.stroke();
+      ctx.strokeStyle = "#ff8fcb"; ctx.lineWidth = 1.4;
+      for (const s of [-1, 1]) {
+        ctx.beginPath(); ctx.moveTo(13, s * 2.5); ctx.quadraticCurveTo(22, s * 5, 24, s * 1.5); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(.05, (now - last) / 1000);
+      last = now;
+      ctx.clearRect(0, 0, W, H);
+      if (on && mouse.seen) { update(dt); draw(); }
+      requestAnimationFrame(frame);
+    }
+    collectHolds();
+    requestAnimationFrame(frame);
+
+    return { refresh() { releaseAll(); refreshHolds(); } };
+  })();
+})();
+</script>
+</body>
+</html>
